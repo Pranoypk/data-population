@@ -95,7 +95,7 @@ def main(file_path):
     save_to_excel(file_path, pimattribute)
 
 # File path to your Excel file
-file_path = r"C:\Users\pkayyala\Desktop\December\Sandvik_product_file_final.xlsx"
+file_path = r"https://raw.githubusercontent.com/Pranoypk/data-population/main/Ceratizit_structured_file_final.xlsx"
 # Run the main function
 main(file_path)
 
