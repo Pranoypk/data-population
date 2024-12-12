@@ -1,114 +1,97 @@
-%%time
-import pandas as pd
-from openpyxl import load_workbook
-from openpyxl.styles import PatternFill
 import os
 import re
- 
-# Load the first dataset (initially provided data)
-df1 = pd.read_excel(r"C:\Users\pkayyala\Desktop\December\Sandvik_product_file_final.xlsx",
-    sheet_name="pimattribute",
-    dtype={"mfg_part": str}  # Ensure mfg_part is read as a string
-)
-df1["mfg_part"] = df1["mfg_part"].astype(str)
-df1["Mill_Diameter"] = df1["Cutting_Diameter"]
-df1["Diameter"] = df1["Cutting_Diameter"]
-df1["Size"] = df1["Cutting_Diameter"]
-df1["Drilling_diameter_Inch_"] = df1["Cutting_Diameter"]
-df1["Drill_Size"] = df1["Cutting_Diameter"]
-df1["Toolholder_Material"] = df1["Material"]
-df1["Surface_Material"] = df1["Material"]
-df1["Twist_Drill_Material"] = df1["Material"]
-df1["Drill_Material"] = df1["Material"]
-df1["Face_effective_cutting_edge_count"] = df1["Flute"]
-df1["Number_of_Cutter_Inserts"] = df1["Flute"]
-#df1["Grade"] = df1["Manufacturer_s_Grade"]
-df1["Spiral_Direction"]= df1["Cutting_Direction"]
-df1["Flute_Direction"]= df1["Cutting_Direction"]
-df1["Thread_Direction"]= df1["Cutting_Direction"]
-df1["Insert_Hand"]= df1["Cutting_Direction"]
-df1["Insert_Hand"] = df1["Insert_Hand"].str.replace("LEFTHAND", "LEFT_HAND")
-df1["Thickness_Inch_"]=df1["Insert_thickness_Inch_"]
-df1["Maximum_Drill_Size"]= df1["Maximum_Cutting_Diameter"]
-df1["Minimum_Drill_Size"]= df1["Minimum_Cutting_Diameter"]
-df1["Minimum_Drill_Diameter"]= df1["Minimum_Cutting_Diameter"]
-df1["Minimum_Drill_Bit_Size"]= df1["Minimum_Cutting_Diameter"]
-df1["Number_of_Teeth"]= df1["Flute"]
-#df1["Protruding_length_Inch_"] = df1["Projection"]
-df1["Nose_Diameter"]= df1["Body_Diameter"]
-df1["Drill_Point_Angle"]=df1["Point_Angle"]
-df1["Point_angle_1st_Step"]=df1["Point_Angle"]
-df1["Length_chip_flute"]=df1["Flute_Length"]
-#df1["Maximum_Depth_of_Cut"]=df1["Depth_Of_Cut"]
+import pandas as pd
+import zipfile
+from flask import Flask, send_file
+from io import BytesIO
+from tkinter import filedialog
+import tkinter as tk
 
+app = Flask(__name__)
 
+# Function to allow file selection for df1 and df2
+def select_file(title="Select File"):
+    root = tk.Tk()
+    root.withdraw()  # Hide the root window
+    file_path = filedialog.askopenfilename(title=title)
+    return file_path
 
-# Load the second dataset (newly provided data)
-df2 = pd.read_excel(r"C:\Users\pkayyala\Desktop\September\master_data.xlsx")
- 
-# Colors for highlighting (not used in the script)
-green_fill = PatternFill(start_color="00FF00", end_color="00FF00", fill_type="solid")
-blue_fill = PatternFill(start_color="0000FF", end_color="0000FF", fill_type="solid")
- 
-# Get unique family codes from df1
-Family_Names = df1['Family_Name'].unique()
- 
-# Directory for saving template files
-output_dir = r"C:\Users\pkayyala\Desktop\December\sandvik_update_2"
-# Ensure the directory exists
-os.makedirs(output_dir, exist_ok=True)
+@app.route('/upload', methods=['POST'])
+def create_template():
+    print("Creating template")
 
-# Function to sanitize file names
-def sanitize_filename(filename):
-    return re.sub(r'[<>:"/\\|?*]', '_', filename)
+    # Load the first dataset (df1) with file selection
+    file1 = select_file("Select the first dataset (df1) file")
+    df1 = pd.read_excel(file1)
 
-# Initialize a list to store file paths and missing value percentages
-file_info = []
-missing_mfg_part_families = []  # List to store Family Names missing 'mfg_part'
+    # Load the second dataset (df2) with file selection
+    file2 = select_file("Select the second dataset (df2) file")
+    df2 = pd.read_excel(file2)
 
-# Loop through each family code and create template files
-for Family_Name in Family_Names:
-    # Filter df1 based on the current family code
-    filtered_df1 = df1[df1['Family_Name'] == Family_Name]
-    # Filter df2 based on the current family code (if applicable)
-    filtered_df2 = df2[df2['Family_Name'] == Family_Name] if 'Family_Name' in df2.columns else df2
-    
-    # Create an empty DataFrame with headers from filtered_df2
-    template_df = pd.DataFrame(columns=filtered_df2['Attribute_Code'])
-    
-    # Check if 'mfg_part' is missing in the columns
-    if "mfg_part" not in template_df.columns:
-        missing_mfg_part_families.append(Family_Name)
-        print(f"'mfg_part' is missing in template for Family_Name: {Family_Name}")
+    # Get unique family codes from df1
+    Family_Names = df1['Family_Name'].unique()
 
-    # Populate the template_df with values from filtered_df1
-    for col in template_df.columns:
-        if col in filtered_df1.columns:
-            template_df[col] = filtered_df1[col].values
+    # Directory for saving template files
+    final_template_dir = r"C:/final_template"  # Change the path as per your needs
+    os.makedirs(final_template_dir, exist_ok=True)
 
-    # Add columns with default values if necessary
-    if "mfg_part" not in template_df.columns:
-        template_df["mfg_part"] = ""
-    
-    template_df["Enable_In_EGC_Supply"] = 0
-    template_df["mfg_part"] = template_df["mfg_part"].astype(str)
-    template_df["enabled"] = 1
-    template_df["special_item"] = 0
+    # Function to sanitize file names
+    def sanitize_filename(filename):
+        return re.sub(r'[<>:"/\\|?*]', '_', filename)
 
-    # Calculate the missing value percentage for each column
-    missing_percentages = template_df.isna().mean() * 100
-    # Create the file path with sanitized file name
-    sanitized_family_name = sanitize_filename(Family_Name)
-    file_path = os.path.join(output_dir, f'{sanitized_family_name}_template.xlsx')
-    # Save the template DataFrame to Excel
-    template_df.to_excel(file_path, index=False)
-    # Store the file path and missing value percentages
-    file_info.append({
-        'file_path': file_path,
-        'missing_percentages': missing_percentages.to_dict()  # Convert to dictionary for better readability
-    })
+    # List to store Family Names missing 'mfg_part'
+    missing_mfg_part_families = []
 
-# Print or save the list of Family Names without 'mfg_part'
-print("Templates missing 'mfg_part':", missing_mfg_part_families)
+    # Loop through each family code and create template files
+    for Family_Name in Family_Names:
+        # Filter df1 based on the current family code
+        filtered_df1 = df1[df1['Family_Name'] == Family_Name]
+        # Filter df2 based on the current family code (if applicable)
+        filtered_df2 = df2[df2['Family_Name'] == Family_Name] if 'Family_Name' in df2.columns else df2
+        
+        # Create an empty DataFrame with headers from filtered_df2
+        template_df = pd.DataFrame(columns=filtered_df2['Attribute_Code'])
+        
+        # Check if 'mfg_part' is missing in the columns
+        if "mfg_part" not in template_df.columns:
+            missing_mfg_part_families.append(Family_Name)
+            print(f"'mfg_part' is missing in template for Family_Name: {Family_Name}")
+        
+        # Populate the template_df with values from filtered_df1
+        for col in template_df.columns:
+            if col in filtered_df1.columns:
+                template_df[col] = filtered_df1[col].values
 
-file_info
+        # Add columns with default values if necessary
+        if "mfg_part" not in template_df.columns:
+            template_df["mfg_part"] = ""
+        
+        template_df["Enable_In_EGC_Supply"] = 0
+        template_df["mfg_part"] = template_df["mfg_part"].astype(str)
+        template_df["enabled"] = 1
+        template_df["special_item"] = 0
+
+        # Sanitize the Family Name for file name
+        sanitized_family_name = sanitize_filename(Family_Name)
+        file_path = os.path.join(final_template_dir, f'{sanitized_family_name}_template.xlsx')
+
+        # Save the template DataFrame to an Excel file
+        template_df.to_excel(file_path, index=False)
+
+    # Create the ZIP file from the directory
+    zip_buffer = BytesIO()
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        for foldername, subfolders, filenames in os.walk(final_template_dir):
+            for filename in filenames:
+                filepath = os.path.join(foldername, filename)
+                arcname = os.path.relpath(filepath, final_template_dir)  # Relative path for the archive
+                zip_file.write(filepath, arcname)
+
+    # Reset the buffer's position to the beginning
+    zip_buffer.seek(0)
+
+    # Send the ZIP file as a response
+    return send_file(zip_buffer, as_attachment=True, download_name="final_template.zip", mimetype="application/zip")
+
+if __name__ == '__main__':
+    app.run(debug=True)
