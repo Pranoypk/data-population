@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product File Upload</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f4f4f9;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        .container {
+            background: #ffffff;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+            margin: 1rem 0;
+        }
+
+        ul li {
+            background: #e0f7fa;
+            color: #00796b;
+            margin: 0.5rem 0;
+            padding: 0.75rem;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        form {
+            margin-top: 1rem;
+        }
+
+        input[type="file"], input[type="text"] {
+            display: block;
+            margin: 1rem auto;
+            padding: 0.5rem;
+            width: 80%;
+        }
+
+        input[type="submit"] {
+            background-color: #00796b;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        input[type="submit"]:hover {
+            background-color: #004d40;
+        }
+
+        .flash-message {
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Upload Your File for Processing</h1>
+
+        <!-- Display flash messages -->
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}
+            <div class="flash-message">
+              <ul>
+                {% for message in messages %}
+                  <li>{{ message }}</li>
+                {% endfor %}
+              </ul>
+            </div>
+          {% endif %}
+        {% endwith %}
+
+        <!-- Upload form -->
+        <form action="/upload" method="post" enctype="multipart/form-data">
+            <input type="file" name="file" accept=".xlsx">
+            <input type="submit" value="Upload">
+        </form>
+
+        <h1>Create Template Files</h1>
+
+        <!-- Template creation form -->
+        <form action="/create_template" method="post" enctype="multipart/form-data">
+            <input type="file" name="template_file" accept=".xlsx">
+            <input type="submit" value="Download Template">
+        </form>
+    </div>
+
+</body>
+</html>
